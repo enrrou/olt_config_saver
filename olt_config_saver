@@ -1,0 +1,47 @@
+#!/usr/bin/python3.4
+import telnetlib
+import os
+from bs4 import BeautifulSoup
+from requests import get
+
+user = 'user'
+password = 'pass'
+port = '23'
+
+def parse():
+    url = 'url'
+    r = get(url, verify=False)
+    soup = BeautifulSoup (r.content, 'html.parser')
+    hosts = []
+    for row in soup.find_all('table')[0].tbody.find_all('tr')[1:]:
+        host = row.find_all('td')[2].text.strip()
+        hosts.append(host)
+    return hosts
+
+
+def copy_config():
+    try:
+        tn = telnetlib.Telnet(host, timeout=6)
+    except:
+        print("Cannot telnet")
+    #tn.set_debuglevel(1000)
+    tn.expect([b"login:"])
+    tn.write(user.encode ('ascii') + b"\n\r")
+    tn.expect([b"Password:"])
+    tn.write(password.encode ('ascii') + b"\n\r")
+    tn.expect([b'#'])
+    tn.write(b"copy fs://config tftp://ipaddr/" + host.encode ('ascii') + b"\n\r")
+    tn.expect([b'#'])
+    tn.write(b"exit" + b"\n\r")
+    tn.close()
+    print ("dump of " + host + " done")
+
+
+for ip in parse():
+    host = ip
+    response = os.system(("ping -c 1 ".encode ('utf-8') + host.encode ('utf-8') + " > /dev/null 2>&1".encode ('utf-8')))
+    if response == 0:
+        print(host + " available")
+        copy_config()
+    else:
+        print("ERROR: host " + host + " is unreachable")
